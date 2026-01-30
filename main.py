@@ -215,14 +215,49 @@ def alterar_registro(
 
     return registro
 
-@app.delete("/registros/{registro_id}")
+
+@app.delete("/registros/{registro_id}", response_model=dict)
 def deletar_registro(registro_id: UUID, db: Session = Depends(get_db), request: Request = None):
+    """
+    Desativa um registro financeiro no banco de dados.
+    
+    Parâmetros:
+    - registro_id: UUID do registro a ser desativado.
+    - db: Sessão do SQLAlchemy (injetada via Depends).
+    - request: Request do FastAPI (usado para limitar taxa de requisições).
+    
+    Fluxo:
+    1. Aplica rate limiting se a requisição for recebida.
+    2. Busca o registro pelo ID e somente se estiver ativo.
+    3. Se não encontrado, retorna HTTP 404.
+    4. Marca o registro como inativo (`ativo = False`) e atualiza o timestamp.
+    5. Commit no banco e retorna confirmação.
+    """
+    
+    # ------------------ RATE LIMIT ------------------
     if request:
         rate_limiter(request)
-    registro = db.query(RegistroFinanceiro).filter(RegistroFinanceiro.id==registro_id, RegistroFinanceiro.ativo==True).first()
+
+    # ------------------ BUSCA REGISTRO ------------------
+    registro = db.query(RegistroFinanceiro)\
+                 .filter(RegistroFinanceiro.id == str(registro_id),
+                         RegistroFinanceiro.ativo == True)\
+                 .first()
+    
+    # ------------------ VALIDAÇÃO ------------------
     if not registro:
+        # Retorna 404 se o registro não existir ou já estiver desativado
         raise HTTPException(status_code=404, detail="Registro não encontrado")
+    
+    # ------------------ DESATIVA REGISTRO ------------------
     registro.ativo = False
-    registro.updated_at = datetime.utcnow()
-    db.commit()
-    return {"detail": f"Registro {registro_id} desativado"}
+    registro.updated_at = datetime.utcnow()  # atualiza timestamp
+    db.commit()  # salva alterações no banco
+
+    # ------------------ RETORNO ------------------
+    return {
+        "detail": f"Registro {registro_id} desativado com sucesso",
+        "id": registro.id,
+        "ativo": registro.ativo,
+        "updated_at": registro.updated_at.isoformat()
+    }
