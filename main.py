@@ -158,18 +158,19 @@ def get_or_create_acesso(cpf: str, db: Session = Depends(get_db), request: Reque
     db.commit()
     db.refresh(novo)
     return novo
-    
+
 @app.get("/acessos", response_model=List[AcessoOut])
 def listar_acessos(
     offset: int = 0,
     limit: int = 10,
-    response: Response,  # <- remove = None, FastAPI injeta automaticamente
+    response: Response,  # <- sem =None, FastAPI injeta
     db: Session = Depends(get_db),
     request: Request = None
 ):
     if request:
         rate_limiter(request)
 
+    # Query de acessos
     query = db.query(Acesso)
     total = query.count()
 
@@ -177,9 +178,11 @@ def listar_acessos(
     query, limit = aplicar_offset_limit(query, offset, limit)
 
     # adiciona headers de paginação
-    set_pagination_headers(response, total, offset, limit, acesso_id="")  # vazio porque aqui não filtramos por acesso_id
+    set_pagination_headers(response, total, offset, limit, acesso_id="")  # Aqui pode passar "" ou None se não houver filtro
 
+    # retorna registros
     return query.all()
+
 
 
 
