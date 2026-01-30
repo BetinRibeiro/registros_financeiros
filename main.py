@@ -8,6 +8,7 @@ from uuid import UUID
 from datetime import datetime
 from fastapi.middleware.cors import CORSMiddleware
 import time
+import re
 
 # ------------------ INIT ------------------
 init_db()
@@ -97,18 +98,31 @@ def set_pagination_headers(response: Response, total: int, offset: int, limit: i
     response.headers["X-Acesso-ID"] = str(acesso_id or "-")
 
 # ------------------ ENDPOINT ACESSO ------------------
+# ------------------ ENDPOINT ACESSO ------------------
 @app.post("/acesso", response_model=AcessoOut)
 def get_or_create_acesso(cpf: str, db: Session = Depends(get_db), request: Request = None):
     if request:
         rate_limiter(request)
-    acesso = db.query(Acesso).filter(Acesso.cpf == cpf).first()
+
+    # 1️⃣ Limpa CPF: remove tudo que não for número
+    cpf_numeros = re.sub(r"\D", "", cpf)
+
+    # 2️⃣ Valida CPF: deve ter 11 dígitos
+    if len(cpf_numeros) != 11:
+        raise HTTPException(status_code=400, detail="CPF inválido. Deve conter 11 números.")
+
+    # 3️⃣ Consulta se já existe
+    acesso = db.query(Acesso).filter(Acesso.cpf == cpf_numeros).first()
     if acesso:
         return acesso
-    novo = Acesso(cpf=cpf)
+
+    # 4️⃣ Se não existir, cria novo registro
+    novo = Acesso(cpf=cpf_numeros)
     db.add(novo)
     db.commit()
     db.refresh(novo)
     return novo
+    
 # ------------------ LISTAR ACESSOS ------------------
 @app.get("/acessos", response_model=List[AcessoOut])
 def listar_acessos(offset: int = 0, limit: int = 10,
