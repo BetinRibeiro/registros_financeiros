@@ -145,12 +145,11 @@ def criar_registro(acesso_id: str, registro: RegistroFinanceiroCreate,
                    db: Session = Depends(get_db), request: Request = None):
     if request:
         rate_limiter(request)
-    # Confirma se acesso existe
+
     acesso = db.query(Acesso).filter(Acesso.id == acesso_id).first()
     if not acesso:
         raise HTTPException(status_code=404, detail="Acesso não encontrado")
     
-    # Cria registro
     novo = RegistroFinanceiro(acesso_id=acesso_id, **registro.dict())
     db.add(novo)
     db.commit()
