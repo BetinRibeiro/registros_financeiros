@@ -148,22 +148,35 @@ def listar_registros(acesso_id: str, offset: int = 0, limit: int = 10,
 
 
 
-
 @app.post("/registros", response_model=RegistroFinanceiroOut)
-def criar_registro(acesso_id: str, registro: RegistroFinanceiroCreate,
-                   db: Session = Depends(get_db), request: Request = None):
+def criar_registro(
+    acesso_id: str,
+    registro: RegistroFinanceiroCreate,
+    db: Session = Depends(get_db),
+    request: Request = None
+):
+    # ----------------- RATE LIMIT -----------------
     if request:
         rate_limiter(request)
 
+    # ----------------- CHECAR ACESSO -----------------
     acesso = db.query(Acesso).filter(Acesso.id == acesso_id).first()
     if not acesso:
         raise HTTPException(status_code=404, detail="Acesso não encontrado")
-    
-    novo = RegistroFinanceiro(acesso_id=acesso_id, **registro.dict())
-    db.add(novo)
-    db.commit()
-    db.refresh(novo)
-    return novo
+
+    # ----------------- CRIAR REGISTRO -----------------
+    novo_registro = RegistroFinanceiro(acesso_id=acesso_id, **registro.dict())
+
+    try:
+        db.add(novo_registro)
+        db.commit()
+        db.refresh(novo_registro)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Erro ao criar registro: {str(e)}")
+
+    return novo_registro
+
 
 
 @app.put("/registros/{registro_id}", response_model=RegistroFinanceiroOut)
