@@ -178,20 +178,41 @@ def criar_registro(
     return novo_registro
 
 
-
 @app.put("/registros/{registro_id}", response_model=RegistroFinanceiroOut)
-def alterar_registro(registro_id: UUID, registro_update: RegistroFinanceiroUpdate,
-                     db: Session = Depends(get_db), request: Request = None):
+def alterar_registro(
+    registro_id: UUID,
+    registro_update: RegistroFinanceiroUpdate,
+    db: Session = Depends(get_db),
+    request: Request = None
+):
+    # ----------------- RATE LIMIT -----------------
     if request:
         rate_limiter(request)
-    registro = db.query(RegistroFinanceiro).filter(RegistroFinanceiro.id==registro_id, RegistroFinanceiro.ativo==True).first()
+
+    # ----------------- BUSCAR REGISTRO -----------------
+    registro = db.query(RegistroFinanceiro).filter(
+        RegistroFinanceiro.id == str(registro_id),  # garantindo que compara strings
+        RegistroFinanceiro.ativo == True
+    ).first()
+
     if not registro:
         raise HTTPException(status_code=404, detail="Registro não encontrado")
+
+    # ----------------- ATUALIZAR CAMPOS -----------------
+    # Só atualiza os campos que foram enviados no JSON
     for key, value in registro_update.dict(exclude_unset=True).items():
         setattr(registro, key, value)
-    registro.updated_at = datetime.utcnow()
-    db.commit()
-    db.refresh(registro)
+
+    registro.updated_at = datetime.utcnow()  # atualizar timestamp
+
+    # ----------------- COMMIT COM TRATAMENTO -----------------
+    try:
+        db.commit()
+        db.refresh(registro)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Erro ao atualizar registro: {str(e)}")
+
     return registro
 
 @app.delete("/registros/{registro_id}")
