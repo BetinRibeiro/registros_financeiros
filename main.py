@@ -188,17 +188,6 @@ def aplicar_offset_limit(query, offset: int, limit: int):
         limit = 100
     return query.offset(offset).limit(limit), limit
 
-def set_pagination_headers(response: Response, total: int, offset: int, limit: int, acesso_id: str):
-    """
-    Define headers de paginação na resposta:
-    X-Total, X-Offset, X-Limit, X-Acesso-ID
-    """
-    if response:
-        response.headers["X-Total"] = str(total)
-        response.headers["X-Offset"] = str(offset)
-        response.headers["X-Limit"] = str(limit)
-        response.headers["X-Acesso-ID"] = str(acesso_id or "-")
-
 # ------------------ LISTAR REGISTROS FINANCEIROS ------------------
 @app.get("/registros", response_model=List[RegistroFinanceiroOut])
 def listar_registros(
