@@ -90,12 +90,13 @@ def aplicar_offset_limit(query, offset: int, limit: int):
     if limit > 100:
         limit = 100
     return query.offset(offset).limit(limit), limit
-
-def set_pagination_headers(response: Response, total: int, offset: int, limit: int, acesso_id: UUID):
+    
+def set_pagination_headers(response: Response, total: int, offset: int, limit: int, acesso_id: str):
     response.headers["X-Total"] = str(total)
     response.headers["X-Offset"] = str(offset)
     response.headers["X-Limit"] = str(limit)
-    response.headers["X-Acesso-ID"] = str(acesso_id or "-")
+    response.headers["X-Acesso-ID"] = acesso_id
+
 
 # ------------------ VALIDA CPF ------------------#
 
