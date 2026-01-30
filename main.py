@@ -176,23 +176,67 @@ def listar_acessos(offset: int = 0, limit: int = 10,
     set_pagination_headers(response, total, offset, limit, acesso_id=None)
     
     return query.all()
-# ------------------ CRUD REGISTRO FINANCEIRO ------------------
+
+
+# ------------------ FUNÇÕES AUXILIARES ------------------
+def aplicar_offset_limit(query, offset: int, limit: int):
+    """
+    Aplica offset e limit em uma query SQLAlchemy.
+    Limita máximo de registros por página a 100.
+    """
+    if limit > 100:
+        limit = 100
+    return query.offset(offset).limit(limit), limit
+
+def set_pagination_headers(response: Response, total: int, offset: int, limit: int, acesso_id: str):
+    """
+    Define headers de paginação na resposta:
+    X-Total, X-Offset, X-Limit, X-Acesso-ID
+    """
+    if response:
+        response.headers["X-Total"] = str(total)
+        response.headers["X-Offset"] = str(offset)
+        response.headers["X-Limit"] = str(limit)
+        response.headers["X-Acesso-ID"] = str(acesso_id or "-")
+
+# ------------------ LISTAR REGISTROS FINANCEIROS ------------------
 @app.get("/registros", response_model=List[RegistroFinanceiroOut])
-def listar_registros(acesso_id: str, offset: int = 0, limit: int = 10,
-                    response: Response = None, db: Session = Depends(get_db),
-                    request: Request = None):
+def listar_registros(
+    acesso_id: str, 
+    offset: int = 0, 
+    limit: int = 10,
+    response: Response = None, 
+    db: Session = Depends(get_db),
+    request: Request = None
+):
+    """
+    Lista os registros financeiros de um acesso específico.
+    Retorna lista de registros ativos com cabeçalhos de paginação.
+    Headers adicionados:
+        X-Total -> total de registros
+        X-Offset -> offset usado
+        X-Limit -> limite usado
+        X-Acesso-ID -> ID do acesso filtrado
+    """
     if request:
         rate_limiter(request)
 
-    # Filtra por acesso_id como string
+    # Query filtrando apenas registros ativos do acesso_id
     query = db.query(RegistroFinanceiro).filter(
         RegistroFinanceiro.acesso_id == str(acesso_id),
-        RegistroFinanceiro.ativo==True
+        RegistroFinanceiro.ativo == True
     )
 
+    # Total de registros
     total = query.count()
+
+    # Aplica offset e limit
     query, limit = aplicar_offset_limit(query, offset, limit)
+
+    # Adiciona cabeçalhos
     set_pagination_headers(response, total, offset, limit, acesso_id)
+
+    # Retorna registros
     return query.all()
 
 
