@@ -97,7 +97,42 @@ def set_pagination_headers(response: Response, total: int, offset: int, limit: i
     response.headers["X-Limit"] = str(limit)
     response.headers["X-Acesso-ID"] = str(acesso_id or "-")
 
-# ------------------ ENDPOINT ACESSO ------------------
+# ------------------ VALIDA CPF ------------------#
+
+def validar_cpf(cpf: str) -> bool:
+    """
+    Valida um CPF verificando os dígitos verificadores.
+    Retorna True se for válido, False caso contrário.
+    """
+
+    # Remove tudo que não for número
+    cpf_numeros = re.sub(r"\D", "", cpf)
+
+    # Deve ter 11 dígitos
+    if len(cpf_numeros) != 11:
+        return False
+
+    # CPF não pode ter todos os números iguais (ex: 11111111111)
+    if cpf_numeros == cpf_numeros[0] * 11:
+        return False
+
+    # --------------------------
+    # Calcula o primeiro dígito verificador
+    # --------------------------
+    soma1 = sum(int(cpf_numeros[i]) * (10 - i) for i in range(9))
+    digito1 = (soma1 * 10 % 11) % 10
+
+    # --------------------------
+    # Calcula o segundo dígito verificador
+    # --------------------------
+    soma2 = sum(int(cpf_numeros[i]) * (11 - i) for i in range(10))
+    digito2 = (soma2 * 10 % 11) % 10
+
+    # Compara com os dígitos do CPF
+    return digito1 == int(cpf_numeros[9]) and digito2 == int(cpf_numeros[10])
+
+
+
 # ------------------ ENDPOINT ACESSO ------------------
 @app.post("/acesso", response_model=AcessoOut)
 def get_or_create_acesso(cpf: str, db: Session = Depends(get_db), request: Request = None):
@@ -107,9 +142,9 @@ def get_or_create_acesso(cpf: str, db: Session = Depends(get_db), request: Reque
     # 1️⃣ Limpa CPF: remove tudo que não for número
     cpf_numeros = re.sub(r"\D", "", cpf)
 
-    # 2️⃣ Valida CPF: deve ter 11 dígitos
-    if len(cpf_numeros) != 11:
-        raise HTTPException(status_code=400, detail="CPF inválido. Deve conter 11 números.")
+    # 2️⃣ Valida CPF usando função validar_cpf
+    if not validar_cpf(cpf_numeros):
+        raise HTTPException(status_code=400, detail="CPF inválido.")
 
     # 3️⃣ Consulta se já existe
     acesso = db.query(Acesso).filter(Acesso.cpf == cpf_numeros).first()
