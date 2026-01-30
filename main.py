@@ -135,15 +135,17 @@ def listar_registros(acesso_id: str, offset: int = 0, limit: int = 10,
     if request:
         rate_limiter(request)
 
+    # Filtra por acesso_id como string
     query = db.query(RegistroFinanceiro).filter(
-        RegistroFinanceiro.acesso_id == acesso_id,
+        RegistroFinanceiro.acesso_id == str(acesso_id),
         RegistroFinanceiro.ativo==True
     )
-    
+
     total = query.count()
     query, limit = aplicar_offset_limit(query, offset, limit)
     set_pagination_headers(response, total, offset, limit, acesso_id)
     return query.all()
+
 
 
 
