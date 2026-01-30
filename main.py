@@ -129,15 +129,22 @@ def listar_acessos(offset: int = 0, limit: int = 10,
     return query.all()
 # ------------------ CRUD REGISTRO FINANCEIRO ------------------
 @app.get("/registros", response_model=List[RegistroFinanceiroOut])
-def listar_registros(acesso_id: UUID, offset: int = 0, limit: int = 10,
+def listar_registros(acesso_id: str, offset: int = 0, limit: int = 10,
                     response: Response = None, db: Session = Depends(get_db),
                     request: Request = None):
     if request:
         rate_limiter(request)
+
     query = db.query(RegistroFinanceiro).filter(
         RegistroFinanceiro.acesso_id == acesso_id,
         RegistroFinanceiro.ativo==True
     )
+    
+    total = query.count()
+    query, limit = aplicar_offset_limit(query, offset, limit)
+    set_pagination_headers(response, total, offset, limit, acesso_id)
+    return query.all()
+
 
 
 @app.post("/registros", response_model=RegistroFinanceiroOut)
