@@ -141,15 +141,22 @@ def listar_registros(acesso_id: UUID, offset: int = 0, limit: int = 10,
     return query.all()
 
 @app.post("/registros", response_model=RegistroFinanceiroOut)
-def criar_registro(acesso_id: UUID, registro: RegistroFinanceiroCreate,
+def criar_registro(acesso_id: str, registro: RegistroFinanceiroCreate,
                    db: Session = Depends(get_db), request: Request = None):
     if request:
         rate_limiter(request)
+    # Confirma se acesso existe
+    acesso = db.query(Acesso).filter(Acesso.id == acesso_id).first()
+    if not acesso:
+        raise HTTPException(status_code=404, detail="Acesso não encontrado")
+    
+    # Cria registro
     novo = RegistroFinanceiro(acesso_id=acesso_id, **registro.dict())
     db.add(novo)
     db.commit()
     db.refresh(novo)
     return novo
+
 
 @app.put("/registros/{registro_id}", response_model=RegistroFinanceiroOut)
 def alterar_registro(registro_id: UUID, registro_update: RegistroFinanceiroUpdate,
