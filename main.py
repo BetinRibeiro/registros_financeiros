@@ -139,18 +139,39 @@ def listar_acessos(response: Response, offset: int = 0, limit: int = 10,
     return query.all()
 
 # ------------------ REGISTROS FINANCEIROS ------------------
+# ------------------ REGISTROS FINANCEIROS ------------------
 @app.get("/registros", response_model=List[RegistroFinanceiroOut])
-def listar_registros(acesso_id: str, response: Response, offset: int = 0, limit: int = 10,
-                     db: Session = Depends(get_db), request: Request = None):
+def listar_registros(
+    acesso_id: str,
+    response: Response,
+    offset: int = 0,
+    limit: int = 10,
+    db: Session = Depends(get_db),
+    request: Request = None
+):
     if request:
         rate_limiter(request)
+
+    # Query filtrando apenas registros ativos do acesso_id
     query = db.query(RegistroFinanceiro).filter(
         RegistroFinanceiro.acesso_id == str(acesso_id),
         RegistroFinanceiro.ativo == True
     )
+
+    # Total de registros
     total = query.count()
+
+    # Aplica offset e limit
     query, limit = aplicar_offset_limit(query, offset, limit)
-    set_pagination_headers(response, total, offset, limit, acesso_id)
+
+    # Adiciona cabeçalhos personalizados e expõe-os para CORS
+    response.headers["X-Total"] = str(total)
+    response.headers["X-Offset"] = str(offset)
+    response.headers["X-Limit"] = str(limit)
+    response.headers["X-Acesso-ID"] = acesso_id
+    response.headers["Access-Control-Expose-Headers"] = "X-Total, X-Offset, X-Limit, X-Acesso-ID"
+
+    # Retorna registros
     return query.all()
 
 @app.post("/registros", response_model=RegistroFinanceiroOut)
