@@ -4,7 +4,6 @@ from database import Base
 from datetime import datetime
 import uuid
 
-# ------------------ ACESSO ------------------
 class Acesso(Base):
     __tablename__ = "acessos"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -14,12 +13,12 @@ class Acesso(Base):
 
     registros: Mapped[list["RegistroFinanceiro"]] = relationship("RegistroFinanceiro", back_populates="acesso")
 
-# ------------------ REGISTRO FINANCEIRO ------------------
+
 class RegistroFinanceiro(Base):
     __tablename__ = "registros_financeiros"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     acesso_id: Mapped[str] = mapped_column(String(36), ForeignKey("acessos.id"), nullable=False)
-    tipo: Mapped[str] = mapped_column(String, nullable=False)  # entrada ou saida
+    tipo: Mapped[str] = mapped_column(String, nullable=False)
     categoria: Mapped[str] = mapped_column(String, nullable=False)
     valor: Mapped[float] = mapped_column(Float, nullable=False)
     forma_pagamento: Mapped[str] = mapped_column(String, nullable=False)
