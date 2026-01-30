@@ -159,24 +159,28 @@ def get_or_create_acesso(cpf: str, db: Session = Depends(get_db), request: Reque
     db.refresh(novo)
     return novo
     
-# ------------------ LISTAR ACESSOS ------------------
 @app.get("/acessos", response_model=List[AcessoOut])
-def listar_acessos(offset: int = 0, limit: int = 10,
-                   response: Response = None, db: Session = Depends(get_db),
-                   request: Request = None):
+def listar_acessos(
+    offset: int = 0,
+    limit: int = 10,
+    response: Response,  # <- remove = None, FastAPI injeta automaticamente
+    db: Session = Depends(get_db),
+    request: Request = None
+):
     if request:
         rate_limiter(request)
-    
+
     query = db.query(Acesso)
     total = query.count()
-    
+
     # aplica offset e limit
     query, limit = aplicar_offset_limit(query, offset, limit)
-    
+
     # adiciona headers de paginação
-    set_pagination_headers(response, total, offset, limit, acesso_id=None)
-    
+    set_pagination_headers(response, total, offset, limit, acesso_id="")  # vazio porque aqui não filtramos por acesso_id
+
     return query.all()
+
 
 
 # ------------------ FUNÇÕES AUXILIARES ------------------
