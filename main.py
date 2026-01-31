@@ -1,3 +1,18 @@
+# from fastapi import FastAPI, HTTPException, Depends, Response, Request
+# from fastapi.middleware.cors import CORSMiddleware
+# from sqlalchemy.orm import Session
+# from pydantic import BaseModel
+# from typing import List, Optional
+# from uuid import UUID
+# from datetime import datetime
+# import re
+# import time
+
+# from models import Acesso, RegistroFinanceiro
+# from database import init_db, get_db
+
+
+# app = FastAPI(title="API Financeira")
 from fastapi import FastAPI, HTTPException, Depends, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -8,11 +23,16 @@ from datetime import datetime
 import re
 import time
 
-from models import Acesso, RegistroFinanceiro
-from database import init_db, get_db
+from models import Acesso, RegistroFinanceiro, Base
+from database import get_db, engine
 
 
 app = FastAPI(title="API Financeira")
+
+@app.on_event("startup")
+def on_startup():
+    Base.metadata.create_all(bind=engine)
+
 
 # ------------------ CORS ------------------
 app.add_middleware(
