@@ -1,51 +1,24 @@
-# from fastapi import FastAPI, HTTPException, Depends, Response, Request
-# from fastapi.middleware.cors import CORSMiddleware
-# from sqlalchemy.orm import Session
-# from pydantic import BaseModel
-# from typing import List, Optional
-# from uuid import UUID
-# from datetime import datetime
-# import re
-# import time
-
-# from models import Acesso, RegistroFinanceiro
-# from database import init_db, get_db
-
-
-# app = FastAPI(title="API Financeira")
-
 from fastapi import FastAPI, HTTPException, Depends, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from sqlalchemy.exc import SQLAlchemyError
 from pydantic import BaseModel
 from typing import List, Optional
 from uuid import UUID
 from datetime import datetime
 import re
 import time
-from sqlalchemy.ext.asyncio import AsyncEngine
-
 
 # 🔹 Importa o engine e a Base do database
 from database import get_db, engine, Base
 
-# 🔹 Importa APENAS os models (para registrar as tabelas)
+# 🔹 Importa APENAS os models
 import models
 from models import Acesso, RegistroFinanceiro
 
 # 🔹 Cria a aplicação
 app = FastAPI(title="API Financeira")
-
-
-async def criar_tabelas(engine: AsyncEngine):
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-@app.on_event("startup")
-async def on_startup():
-    from database import engine  # seu AsyncEngine
-    await criar_tabelas(engine)
-
 
 # ------------------ CORS ------------------
 app.add_middleware(
@@ -129,6 +102,7 @@ def set_pagination_headers(response: Response, total: int, offset: int, limit: i
     response.headers["X-Offset"] = str(offset)
     response.headers["X-Limit"] = str(limit)
     response.headers["X-Acesso-ID"] = acesso_id
+    response.headers["Access-Control-Expose-Headers"] = "X-Total, X-Offset, X-Limit, X-Acesso-ID"
 
 def validar_cpf(cpf: str) -> bool:
     cpf_numeros = re.sub(r"\D", "", cpf)
@@ -142,123 +116,128 @@ def validar_cpf(cpf: str) -> bool:
     digito2 = (soma2 * 10 % 11) % 10
     return digito1 == int(cpf_numeros[9]) and digito2 == int(cpf_numeros[10])
 
+# ------------------ STARTUP ------------------
+async def criar_tabelas():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+@app.on_event("startup")
+async def startup_event():
+    await criar_tabelas()
+
 # ------------------ ENDPOINT ACESSO ------------------
 @app.post("/acesso", response_model=AcessoOut)
-def get_or_create_acesso(cpf: str, db: Session = Depends(get_db), request: Request = None):
+async def get_or_create_acesso(cpf: str, db: AsyncSession = Depends(get_db), request: Request = None):
     if request:
         rate_limiter(request)
     cpf_numeros = re.sub(r"\D", "", cpf)
     if not validar_cpf(cpf_numeros):
         raise HTTPException(status_code=400, detail="CPF inválido.")
-    acesso = db.query(Acesso).filter(Acesso.cpf == cpf_numeros).first()
+    result = await db.execute(select(Acesso).where(Acesso.cpf == cpf_numeros))
+    acesso = result.scalar_one_or_none()
     if acesso:
         return acesso
     novo = Acesso(cpf=cpf_numeros)
     db.add(novo)
-    db.commit()
-    db.refresh(novo)
+    await db.commit()
+    await db.refresh(novo)
     return novo
 
 @app.get("/acessos", response_model=List[AcessoOut])
-def listar_acessos(response: Response, offset: int = 0, limit: int = 10,
-                    db: Session = Depends(get_db), request: Request = None):
+async def listar_acessos(response: Response, offset: int = 0, limit: int = 10,
+                         db: AsyncSession = Depends(get_db), request: Request = None):
     if request:
         rate_limiter(request)
-    query = db.query(Acesso)
-    total = query.count()
-    query, limit = aplicar_offset_limit(query, offset, limit)
-    set_pagination_headers(response, total, offset, limit, acesso_id="")
-    return query.all()
+    result = await db.execute(select(Acesso))
+    query = result.scalars()
+    total = await db.execute(select(Acesso))
+    total_count = len(total.scalars().all())
+    # Offset e limit manual
+    query_list = query.all()[offset:offset+limit]
+    set_pagination_headers(response, total_count, offset, limit, acesso_id="")
+    return query_list
 
 # ------------------ REGISTROS FINANCEIROS ------------------
-# ------------------ REGISTROS FINANCEIROS ------------------
 @app.get("/registros", response_model=List[RegistroFinanceiroOut])
-def listar_registros(
+async def listar_registros(
     acesso_id: str,
     response: Response,
     offset: int = 0,
     limit: int = 10,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     request: Request = None
 ):
     if request:
         rate_limiter(request)
-
-    # Query filtrando apenas registros ativos do acesso_id
-    query = db.query(RegistroFinanceiro).filter(
-        RegistroFinanceiro.acesso_id == str(acesso_id),
-        RegistroFinanceiro.ativo == True
+    result = await db.execute(
+        select(RegistroFinanceiro)
+        .where(RegistroFinanceiro.acesso_id == str(acesso_id))
+        .where(RegistroFinanceiro.ativo == True)
     )
-
-    # Total de registros
-    total = query.count()
-
-    # Aplica offset e limit
-    query, limit = aplicar_offset_limit(query, offset, limit)
-
-    # Adiciona cabeçalhos personalizados e expõe-os para CORS
-    response.headers["X-Total"] = str(total)
-    response.headers["X-Offset"] = str(offset)
-    response.headers["X-Limit"] = str(limit)
-    response.headers["X-Acesso-ID"] = acesso_id
-    response.headers["Access-Control-Expose-Headers"] = "X-Total, X-Offset, X-Limit, X-Acesso-ID"
-
-    # Retorna registros
-    return query.all()
+    registros = result.scalars().all()
+    total = len(registros)
+    registros_pag = registros[offset:offset+limit]
+    set_pagination_headers(response, total, offset, limit, acesso_id)
+    return registros_pag
 
 @app.post("/registros", response_model=RegistroFinanceiroOut)
-def criar_registro(acesso_id: str, registro: RegistroFinanceiroCreate,
-                   db: Session = Depends(get_db), request: Request = None):
+async def criar_registro(acesso_id: str, registro: RegistroFinanceiroCreate,
+                         db: AsyncSession = Depends(get_db), request: Request = None):
     if request:
         rate_limiter(request)
-    acesso = db.query(Acesso).filter(Acesso.id == acesso_id).first()
+    result = await db.execute(select(Acesso).where(Acesso.id == acesso_id))
+    acesso = result.scalar_one_or_none()
     if not acesso:
         raise HTTPException(status_code=404, detail="Acesso não encontrado")
     novo_registro = RegistroFinanceiro(acesso_id=acesso_id, **registro.dict())
     try:
         db.add(novo_registro)
-        db.commit()
-        db.refresh(novo_registro)
-    except Exception as e:
-        db.rollback()
+        await db.commit()
+        await db.refresh(novo_registro)
+    except SQLAlchemyError as e:
+        await db.rollback()
         raise HTTPException(status_code=500, detail=f"Erro ao criar registro: {str(e)}")
     return novo_registro
 
 @app.put("/registros/{registro_id}", response_model=RegistroFinanceiroOut)
-def alterar_registro(registro_id: UUID, registro_update: RegistroFinanceiroUpdate,
-                     db: Session = Depends(get_db), request: Request = None):
+async def alterar_registro(registro_id: UUID, registro_update: RegistroFinanceiroUpdate,
+                           db: AsyncSession = Depends(get_db), request: Request = None):
     if request:
         rate_limiter(request)
-    registro = db.query(RegistroFinanceiro).filter(
-        RegistroFinanceiro.id == str(registro_id),
-        RegistroFinanceiro.ativo == True
-    ).first()
+    result = await db.execute(
+        select(RegistroFinanceiro)
+        .where(RegistroFinanceiro.id == str(registro_id))
+        .where(RegistroFinanceiro.ativo == True)
+    )
+    registro = result.scalar_one_or_none()
     if not registro:
         raise HTTPException(status_code=404, detail="Registro não encontrado")
     for key, value in registro_update.dict(exclude_unset=True).items():
         setattr(registro, key, value)
     registro.updated_at = datetime.utcnow()
     try:
-        db.commit()
-        db.refresh(registro)
-    except Exception as e:
-        db.rollback()
+        await db.commit()
+        await db.refresh(registro)
+    except SQLAlchemyError as e:
+        await db.rollback()
         raise HTTPException(status_code=500, detail=f"Erro ao atualizar registro: {str(e)}")
     return registro
 
 @app.delete("/registros/{registro_id}", response_model=dict)
-def deletar_registro(registro_id: UUID, db: Session = Depends(get_db), request: Request = None):
+async def deletar_registro(registro_id: UUID, db: AsyncSession = Depends(get_db), request: Request = None):
     if request:
         rate_limiter(request)
-    registro = db.query(RegistroFinanceiro).filter(
-        RegistroFinanceiro.id == str(registro_id),
-        RegistroFinanceiro.ativo == True
-    ).first()
+    result = await db.execute(
+        select(RegistroFinanceiro)
+        .where(RegistroFinanceiro.id == str(registro_id))
+        .where(RegistroFinanceiro.ativo == True)
+    )
+    registro = result.scalar_one_or_none()
     if not registro:
         raise HTTPException(status_code=404, detail="Registro não encontrado")
     registro.ativo = False
     registro.updated_at = datetime.utcnow()
-    db.commit()
+    await db.commit()
     return {
         "detail": f"Registro {registro_id} desativado com sucesso",
         "id": registro.id,
