@@ -2,10 +2,12 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-# 🔐 Railway injeta essa variável automaticamente
-DATABASE_URL = os.environ["DATABASE_URL"]
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-# 🔄 Corrige formato antigo se existir
+if not DATABASE_URL:
+    raise RuntimeError("❌ DATABASE_URL não encontrada nas variáveis de ambiente")
+
+# Corrige formato antigo (Railway às vezes usa postgres://)
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace(
         "postgres://",
@@ -32,6 +34,7 @@ def get_db():
         yield db
     finally:
         db.close()
+
 
 
 # antes era assim:
