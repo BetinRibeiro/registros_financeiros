@@ -2,29 +2,22 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-# 🔹 Pega a URL do Railway
 DATABASE_URL = os.environ.get("DATABASE_PUBLIC_URL")
 if not DATABASE_URL:
-    raise RuntimeError("DATABASE_PUBLIC_URL não encontrada - VERIFICAR VARIAVEIS")
+    raise RuntimeError("DATABASE_PUBLIC_URL não encontrada")
 
-# 🔹 Altera o prefixo para psycopg (psycopg3)
+# 🔹 Substitui psycopg2 por psycopg3
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
 
 engine = create_engine(
     DATABASE_URL,
-    pool_pre_ping=True,
+    pool_pre_ping=True
 )
 
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine
-)
-
+SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 Base = declarative_base()
 
-# 🔹 Função helper para dependência do FastAPI
 def get_db():
     db = SessionLocal()
     try:
