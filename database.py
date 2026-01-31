@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not DATABASE_URL:
-    raise RuntimeError("❌ DATABASE_URL não encontrada")
+    raise RuntimeError("DATABASE_URL não encontrada")
 
 # 🔥 força psycopg v3
 if DATABASE_URL.startswith("postgres://"):
