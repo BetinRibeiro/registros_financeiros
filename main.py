@@ -13,6 +13,7 @@
 
 
 # app = FastAPI(title="API Financeira")
+
 from fastapi import FastAPI, HTTPException, Depends, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -23,12 +24,17 @@ from datetime import datetime
 import re
 import time
 
-from models import Acesso, RegistroFinanceiro, Base
-from database import get_db, engine
+# 🔹 Importa o engine e a Base do database
+from database import get_db, engine, Base
 
+# 🔹 Importa APENAS os models (para registrar as tabelas)
+import models
+from models import Acesso, RegistroFinanceiro
 
+# 🔹 Cria a aplicação
 app = FastAPI(title="API Financeira")
 
+# 🔹 Evento de startup: cria as tabelas no PostgreSQL
 @app.on_event("startup")
 def on_startup():
     Base.metadata.create_all(bind=engine)
