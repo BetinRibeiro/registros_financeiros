@@ -8,6 +8,8 @@ from uuid import UUID
 from datetime import datetime
 import re
 import time
+from sqlalchemy import text  # no topo do main.py
+
 
 # 🔹 Importa o engine e a Base do database
 from database import get_db, engine
@@ -122,7 +124,7 @@ async def startup_event():
     """
     try:
         async with engine.connect() as conn:
-            await conn.execute("SELECT 1")
+            await conn.execute(text("SELECT 1"))
         print("✅ Conexão com o banco OK")
     except Exception as e:
         print("❌ Falha ao conectar no banco:", e)
