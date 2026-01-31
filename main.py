@@ -49,7 +49,7 @@ class AcessoOut(BaseModel):
     id: UUID
     cpf: str
     class Config:
-        from_attributes = True
+        from_attributes = True  # Para Pydantic V2
 
 class RegistroFinanceiroCreate(BaseModel):
     tipo: str
@@ -89,7 +89,7 @@ class RegistroFinanceiroOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # ------------------ FUNÇÕES AUXILIARES ------------------
 def aplicar_offset_limit(query, offset: int, limit: int):
@@ -124,6 +124,7 @@ async def criar_tabelas():
 @app.on_event("startup")
 async def startup_event():
     await criar_tabelas()
+
 
 # ------------------ ENDPOINT ACESSO ------------------
 @app.post("/acesso", response_model=AcessoOut)
