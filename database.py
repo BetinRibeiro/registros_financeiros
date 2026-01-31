@@ -2,10 +2,10 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
+DATABASE_URL = os.environ.get("DATABASE_PUBLIC_URL")
 
 if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL não encontrada")
+    raise RuntimeError("DATABASE_PUBLIC_URL não encontrada")
 
 engine = create_engine(
     DATABASE_URL,
