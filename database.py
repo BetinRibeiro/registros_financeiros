@@ -2,12 +2,21 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-#configurado no servidor
-DATABASE_URL = os.getenv("DATABASE_URL")
+# URL do banco:
+# - Em produção: vem da variável de ambiente (Railway)
+# - Em local: cai automaticamente no SQLite
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "sqlite:///./finance.db"
+)
 
 engine = create_engine(
     DATABASE_URL,
-    pool_pre_ping=True
+    pool_pre_ping=True,
+    # SQLite não aceita múltiplas threads sem isso
+    connect_args={"check_same_thread": False}
+    if DATABASE_URL.startswith("sqlite")
+    else {}
 )
 
 SessionLocal = sessionmaker(
