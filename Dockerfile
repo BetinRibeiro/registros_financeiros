@@ -1,5 +1,6 @@
 # Escolhe a imagem do Python com Debian, que dá mais compatibilidade
-FROM python:3.12-slim
+FROM python:3.11-slim
+
 
 
 # Evita mensagens de cache e instala ferramentas de compilação necessárias
