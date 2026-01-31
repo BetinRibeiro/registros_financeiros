@@ -1,30 +1,31 @@
-import os
-from sqlalchemy import create_engine
+# database.py
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-DATABASE_URL = os.environ.get("DATABASE_PUBLIC_URL")
-if not DATABASE_URL:
-    raise RuntimeError("DATABASE_PUBLIC_URL não encontrada")
+# Colocando direto sua URL do Railway
+DATABASE_URL = "postgresql+asyncpg://postgres:NPpMEjPzosZNtLVHhblqMxQeOBqnubOq@shortline.proxy.rlwy.net:24134/railway"
 
-# 🔹 Substitui psycopg2 por psycopg3
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
-
-engine = create_engine(
+# Cria engine assíncrona
+engine = create_async_engine(
     DATABASE_URL,
-    pool_pre_ping=True
+    echo=True,  # logs SQL no terminal
+    future=True
 )
 
+# Cria sessão assíncrona
+async_session = sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False
+)
 
-SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+# Base para os models
 Base = declarative_base()
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# Função de dependência para FastAPI
+async def get_db():
+    async with async_session() as session:
+        yield session
 
 
 
