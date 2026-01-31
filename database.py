@@ -2,21 +2,20 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-# URL do banco:
-# - Em produção: vem da variável de ambiente (Railway)
-# - Em local: cai automaticamente no SQLite
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "sqlite:///./finance.db"
-)
+# 🔐 Railway injeta essa variável automaticamente
+DATABASE_URL = os.environ["DATABASE_URL"]
+
+# 🔄 Corrige formato antigo se existir
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace(
+        "postgres://",
+        "postgresql+psycopg://",
+        1
+    )
 
 engine = create_engine(
     DATABASE_URL,
-    pool_pre_ping=True,
-    # SQLite não aceita múltiplas threads sem isso
-    connect_args={"check_same_thread": False}
-    if DATABASE_URL.startswith("sqlite")
-    else {}
+    pool_pre_ping=True
 )
 
 SessionLocal = sessionmaker(
@@ -33,6 +32,7 @@ def get_db():
         yield db
     finally:
         db.close()
+
 
 # antes era assim:
 
