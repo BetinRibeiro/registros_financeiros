@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 DATABASE_URL = os.environ.get("DATABASE_PUBLIC_URL")
 
 if not DATABASE_URL:
-    raise RuntimeError("DATABASE_PUBLIC_URL não encontrada")
+    raise RuntimeError("DATABASE_PUBLIC_URL não encontrada - VERIFICAR VARIAVEIS")
 
 engine = create_engine(
     DATABASE_URL,
