@@ -11,8 +11,7 @@ import time
 from models import Acesso, RegistroFinanceiro
 from database import init_db, get_db
 
-# ------------------ INIT ------------------
-init_db()
+
 app = FastAPI(title="API Financeira")
 
 # ------------------ CORS ------------------
