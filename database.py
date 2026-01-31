@@ -5,12 +5,8 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 # Colocando direto sua URL do Railway
 DATABASE_URL = "postgresql+asyncpg://postgres:NPpMEjPzosZNtLVHhblqMxQeOBqnubOq@shortline.proxy.rlwy.net:24134/railway"
 
-# Cria engine assíncrona
-engine = create_async_engine(
-    DATABASE_URL,
-    echo=True,  # logs SQL no terminal
-    future=True
-)
+
+engine = create_async_engine(DATABASE_URL, echo=True)
 
 # Cria sessão assíncrona
 async_session = sessionmaker(
