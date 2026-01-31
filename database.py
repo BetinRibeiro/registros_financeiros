@@ -1,14 +1,18 @@
 import os
-print("ENV VARS:", os.environ.keys())  # 👈 AQUI
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
+# (opcional) log para debug – pode remover depois
+print("ENV VARS:", os.environ.keys())
+
+# Lê a variável de ambiente configurada no Railway
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not DATABASE_URL:
     raise RuntimeError("❌ DATABASE_URL não encontrada nas variáveis de ambiente")
 
-# Corrige formato antigo (Railway às vezes usa postgres://)
+# Corrige formato antigo caso venha como postgres://
+# (SQLAlchemy moderno exige postgresql+psycopg://)
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace(
         "postgres://",
@@ -16,19 +20,23 @@ if DATABASE_URL.startswith("postgres://"):
         1
     )
 
+# Cria o engine de conexão com o Postgres
 engine = create_engine(
     DATABASE_URL,
-    pool_pre_ping=True
+    pool_pre_ping=True  # evita conexões mortas
 )
 
+# Sessão do banco (usada no Depends do FastAPI)
 SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
     bind=engine
 )
 
+# Base declarativa dos models
 Base = declarative_base()
 
+# Dependency do FastAPI
 def get_db():
     db = SessionLocal()
     try:
