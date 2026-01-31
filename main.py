@@ -49,7 +49,7 @@ class AcessoOut(BaseModel):
     id: UUID
     cpf: str
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class RegistroFinanceiroCreate(BaseModel):
     tipo: str
