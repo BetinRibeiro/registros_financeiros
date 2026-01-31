@@ -1,7 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 from sqlalchemy.exc import SQLAlchemyError
 from pydantic import BaseModel
 from typing import List, Optional
@@ -11,7 +10,7 @@ import re
 import time
 
 # 🔹 Importa o engine e a Base do database
-from database import get_db, engine, Base
+from database import get_db, engine
 
 # 🔹 Importa APENAS os models
 import models
@@ -49,7 +48,7 @@ class AcessoOut(BaseModel):
     id: UUID
     cpf: str
     class Config:
-        from_attributes = True  # Para Pydantic V2
+        from_attributes = True  # Pydantic V2
 
 class RegistroFinanceiroCreate(BaseModel):
     tipo: str
@@ -106,9 +105,7 @@ def set_pagination_headers(response: Response, total: int, offset: int, limit: i
 
 def validar_cpf(cpf: str) -> bool:
     cpf_numeros = re.sub(r"\D", "", cpf)
-    if len(cpf_numeros) != 11:
-        return False
-    if cpf_numeros == cpf_numeros[0] * 11:
+    if len(cpf_numeros) != 11 or cpf_numeros == cpf_numeros[0] * 11:
         return False
     soma1 = sum(int(cpf_numeros[i]) * (10 - i) for i in range(9))
     digito1 = (soma1 * 10 % 11) % 10
@@ -116,14 +113,29 @@ def validar_cpf(cpf: str) -> bool:
     digito2 = (soma2 * 10 % 11) % 10
     return digito1 == int(cpf_numeros[9]) and digito2 == int(cpf_numeros[10])
 
-# ------------------ STARTUP ------------------
-async def criar_tabelas():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
+# ------------------ STARTUP / SHUTDOWN ------------------
 @app.on_event("startup")
 async def startup_event():
-    await criar_tabelas()
+    """
+    Inicializa conexões e pools do SQLAlchemy Async.
+    Não crie tabelas aqui! Use Alembic para migrações.
+    """
+    try:
+        async with engine.connect() as conn:
+            await conn.execute("SELECT 1")
+        print("✅ Conexão com o banco OK")
+    except Exception as e:
+        print("❌ Falha ao conectar no banco:", e)
+        raise
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """
+    Fecha conexões e pools do SQLAlchemy Async.
+    """
+    await engine.dispose()
+    print("🔒 Conexões encerradas")
+
 
 
 # ------------------ ENDPOINT ACESSO ------------------
