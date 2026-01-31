@@ -1,4 +1,5 @@
 import os
+print("ENV VARS:", os.environ.keys())  # 👈 AQUI
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
