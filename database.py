@@ -1,24 +1,62 @@
+# Importa a função create_engine, responsável por criar a conexão com o banco de dados
 from sqlalchemy import create_engine
+
+# Importa utilitários do SQLAlchemy:
+# - sessionmaker: cria sessões de conexão com o banco
+# - declarative_base: base para os modelos ORM
 from sqlalchemy.orm import sessionmaker, declarative_base
 
+# String de conexão com o banco SQLite
+# "sqlite:///" indica um banco local no mesmo diretório do projeto
 DATABASE_URL = "sqlite:///finance.db"  # note os 4 /
 
+# Cria o engine (motor de conexão) com o banco de dados
+# check_same_thread=False permite múltiplas threads acessarem o SQLite
+# echo=True faz o SQLAlchemy imprimir no terminal todas as queries SQL executadas
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    echo=True
+)
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False}, echo=True)
+# Cria a classe base que será herdada por todos os modelos (tabelas)
 Base = declarative_base()
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
+# Cria uma fábrica de sessões do banco de dados
+# autoflush=False evita envio automático de dados antes do commit
+# autocommit=False exige commit manual para salvar alterações
+SessionLocal = sessionmaker(
+    bind=engine,
+    autoflush=False,
+    autocommit=False
+)
+
+# Função responsável por criar todas as tabelas no banco de dados
 def init_db():
+    # Importa a Base dos models para registrar todas as tabelas
+    # Esse import garante que todos os modelos sejam carregados
     from models import Base
+
+    # Cria todas as tabelas definidas nos modelos no banco de dados
     Base.metadata.create_all(bind=engine)
+
+    # Mensagem de confirmação no terminal
     print("Tabelas criadas com sucesso!")
 
+# Função geradora que fornece uma sessão do banco para uso na API
+# Muito usada com Depends(get_db) no FastAPI
 def get_db():
+    # Cria uma nova sessão do banco
     db = SessionLocal()
     try:
+        # Retorna a sessão para quem chamou a função
         yield db
     finally:
+        # Garante que a sessão será fechada após o uso
         db.close()
 
+# Verifica se este arquivo está sendo executado diretamente
+# (e não importado por outro arquivo)
 if __name__ == "__main__":
+    # Executa a criação das tabelas ao rodar o arquivo diretamente
     init_db()
