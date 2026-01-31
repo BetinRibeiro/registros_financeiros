@@ -1,5 +1,6 @@
 fastapi
 uvicorn[standard]
-sqlalchemy>=2.0
-psycopg[binary]
+sqlalchemy>=2.1
+psycopg[binary]       # driver moderno (psycopg3)
+psycopg2-binary       # fallback obrigatório para contêineres
 python-dotenv
