@@ -23,6 +23,8 @@ from uuid import UUID
 from datetime import datetime
 import re
 import time
+from sqlalchemy.ext.asyncio import AsyncEngine
+
 
 # 🔹 Importa o engine e a Base do database
 from database import get_db, engine, Base
@@ -34,10 +36,15 @@ from models import Acesso, RegistroFinanceiro
 # 🔹 Cria a aplicação
 app = FastAPI(title="API Financeira")
 
-# 🔹 Evento de startup: cria as tabelas no PostgreSQL
+
+async def criar_tabelas(engine: AsyncEngine):
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
 @app.on_event("startup")
-def on_startup():
-    Base.metadata.create_all(bind=engine)
+async def on_startup():
+    from database import engine  # seu AsyncEngine
+    await criar_tabelas(engine)
 
 
 # ------------------ CORS ------------------
